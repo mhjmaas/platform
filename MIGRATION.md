@@ -1,13 +1,155 @@
 # Migration Guide
 
-## Documentation
+## Migration guide NgRx v7
+
+### @ngrx/store
+
+#### `select`
+
+In NgRx 6.1 the `select` static function was marked as deprecated in favor of the `select` RxJS operator, in NgRx v7 this static function was dropped.
+
+BEFORE:
+
+```ts
+import { Store } from '@ngrx/store');
+import { selectUser } from '../reducers');
+
+@Component({...})
+export class AppComponent implements OnInit {
+  user$: Observable<User>;
+
+  constructor(private store: Store<AppState>) { }
+
+  ngOnInit() {
+    this.user$ = this.store.select(selectUser);
+  }
+}
+```
+
+AFTER:
+
+```ts
+import { Store, select } from '@ngrx/store'); // import `select`
+import { selectUser } from '../reducers');
+
+@Component({...})
+export class AppComponent implements OnInit {
+  user$: Observable<User>;
+
+  constructor(private store: Store<AppState>) { }
+
+  ngOnInit() {
+    this.user$ = this.store.pipe(select(selectUser)); // use the pipeable select operator
+  }
+}
+```
+
+#### `@ngrx/store/update-reducers` action
+
+When multiple feature reducers are registered, a single action is dispatched instead of an action for each added feature reducer.
+
+BEFORE:
+
+When adding/removing one feature:
+
+```ts
+{type: '@ngrx/store/update-reducers', feature: 'feat1'}
+```
+
+When adding/removing multiple features:
+
+```ts
+{type: '@ngrx/store/update-reducers', feature: 'feat1'}
+{type: '@ngrx/store/update-reducers', feature: 'feat2'}
+```
+
+AFTER:
+
+When adding/removing one feature:
+
+```ts
+{type: '@ngrx/store/update-reducers', features: ['feat1']}
+```
+
+When adding/removing multiple features:
+
+```ts
+{type: '@ngrx/store/update-reducers', features: ['feat1', 'feat2']}
+```
+
+### @ngrx/effects
+
+#### `ofType`
+
+In NgRx 6.1 the `ofType` static function was marked as deprecated in favor of the `ofType` RxJS operator, in NgRx v7 this static function was dropped.
+
+BEFORE:
+
+```ts
+import { Effect, Actions } from '@ngrx/effects';
+
+@Injectable()
+export class MyEffects {
+  @Effect()
+  someEffect$: Observable<Action> = this.actions$
+    .ofType(UserActions.LOGIN)
+    .pipe(map(() => new AnotherAction()));
+
+  constructor(private actions$: Actions) {}
+}
+```
+
+AFTER:
+
+```ts
+import { Effect, Actions, ofType } from '@ngrx/effects'; // import ofType operator
+
+@Injectable()
+export class MyEffects {
+  @Effect()
+  someEffect$: Observable<Action> = this.actions$.pipe(
+    ofType(UserActions.LOGIN), // use the pipeable ofType operator
+    map(() => new AnotherAction())
+  );
+
+  constructor(private actions$: Actions) {}
+}
+```
+
+### @ngrx/store-router
+
+#### Default state key
+
+The default NgRx router state key is changed from `routerReducer` to `router`.
+
+BEFORE:
+
+```ts
+StoreRouterConnectingModule.forRoot({
+  stateKey: 'router',
+}),
+```
+
+AFTER:
+
+```ts
+StoreRouterConnectingModule.forRoot(),
+```
+
+### @ngrx/store-devtools
+
+The devtools is using the new `@ngrx/devtools/recompute-state` action to recompute its state instead of the `@ngrx/store/update-reducers` action.
+
+## Migration guide NgRx v4
+
+### Documentation
 
 Links to the current documentation for ngrx 4.x
 
-* [@ngrx/store](./docs/store/README.md)
-* [@ngrx/effects](./docs/effects/README.md)
-* [@ngrx/router-store](./docs/router-store/README.md)
-* [@ngrx/store-devtools](./docs/store-devtools/README.md)
+- [@ngrx/store](./docs/store/README.md)
+- [@ngrx/effects](./docs/effects/README.md)
+- [@ngrx/router-store](./docs/router-store/README.md)
+- [@ngrx/store-devtools](./docs/store-devtools/README.md)
 
 The sections below cover the changes between the ngrx projects migrating from V1.x/2.x to V4.
 
@@ -17,14 +159,14 @@ The sections below cover the changes between the ngrx projects migrating from V1
 [@ngrx/router-store](#ngrxrouter-store)  
 [@ngrx/store-devtools](#ngrxstore-devtools)
 
-## Dependencies
+### Dependencies
 
 You need to have the latest versions of TypeScript and RxJS to use ngrx V4 libraries.
 
 TypeScript 2.4.x  
 RxJS 5.4.x
 
-## @ngrx/core
+### @ngrx/core
 
 @ngrx/core is no longer needed and can conflict with @ngrx/store. You should remove it from your project.
 
@@ -40,9 +182,9 @@ AFTER:
 import { compose } from '@ngrx/store';
 ```
 
-## @ngrx/store
+### @ngrx/store
 
-### Action interface
+#### Action interface
 
 The `payload` property has been removed from the `Action` interface. It was a source of type-safety
 issues, especially when used with `@ngrx/effects`. If your interface/class has a payload, you need to provide
@@ -61,7 +203,10 @@ export class MyEffects {
   @Effect()
   someEffect$: Observable<Action> = this.actions$
     .ofType(UserActions.LOGIN)
-    .pipe(map(action => action.payload), map(() => new AnotherAction()));
+    .pipe(
+      map(action => action.payload),
+      map(() => new AnotherAction())
+    );
 
   constructor(private actions$: Actions) {}
 }
@@ -81,7 +226,10 @@ export class MyEffects {
   @Effect()
   someEffect$: Observable<Action> = this.actions$
     .ofType<Login>(UserActions.LOGIN)
-    .pipe(map(action => action.payload), map(() => new AnotherAction()));
+    .pipe(
+      map(action => action.payload),
+      map(() => new AnotherAction())
+    );
 
   constructor(private actions$: Actions) {}
 }
@@ -103,7 +251,7 @@ export interface UnsafeAction extends Action {
 }
 ```
 
-### Registering Reducers
+#### Registering Reducers
 
 Previously to be AOT compatible, it was required to pass a function to the `provideStore` method to compose the reducers into one root reducer. The `initialState` was also provided to the method as an object in the second argument.
 
@@ -182,9 +330,9 @@ import { reducers } from './reducers';
 export class AppModule {}
 ```
 
-## @ngrx/effects
+### @ngrx/effects
 
-### Registering Effects
+#### Registering Effects
 
 BEFORE:
 
@@ -224,7 +372,7 @@ Import `EffectsModule.forFeature` in any NgModule, whether be the `AppModule` or
 export class FeatureModule {}
 ```
 
-### Init Action
+#### Init Action
 
 The `@ngrx/store/init` action now fires prior to effects starting. Use defer() for the same behaviour.
 
@@ -273,7 +421,7 @@ export class AppEffects {
 }
 ```
 
-### Testing Effects
+#### Testing Effects
 
 BEFORE:
 
@@ -352,9 +500,9 @@ describe('My Effects', () => {
 });
 ```
 
-## @ngrx/router-store
+### @ngrx/router-store
 
-### Registering the module
+#### Registering the module
 
 BEFORE:
 
@@ -431,7 +579,7 @@ import { reducers } from './reducers';
 export class AppModule {}
 ```
 
-### Navigation actions
+#### Navigation actions
 
 Navigation actions are not provided as part of the V4 package. You provide your own
 custom navigation actions that use the `Router` within effects to navigate.
@@ -508,14 +656,12 @@ import * as RouterActions from './actions/router';
 @Injectable()
 export class RouterEffects {
   @Effect({ dispatch: false })
-  navigate$ = this.actions$
-    .ofType(RouterActions.GO)
-    .pipe(
-      map((action: RouterActions.Go) => action.payload),
-      tap(({ path, query: queryParams, extras }) =>
-        this.router.navigate(path, { queryParams, ...extras })
-      )
-    );
+  navigate$ = this.actions$.ofType(RouterActions.GO).pipe(
+    map((action: RouterActions.Go) => action.payload),
+    tap(({ path, query: queryParams, extras }) =>
+      this.router.navigate(path, { queryParams, ...extras })
+    )
+  );
 
   @Effect({ dispatch: false })
   navigateBack$ = this.actions$
@@ -535,7 +681,7 @@ export class RouterEffects {
 }
 ```
 
-## @ngrx/store-devtools
+### @ngrx/store-devtools
 
 **NOTE:** store-devtools currently causes severe performance problems when
 used with router-store. We are working to
